@@ -15,35 +15,40 @@ contract XP_Engine  is Stablecoin {
  * Data Feed: ETH/USD
  * Address: 0x694AA1769357215DE4FAC081bf1f309aDC325306
  * 
- * Network : mainnet(ETH)
- * Data Feed : USD / INR 
- * Address : 0x605D5c2fBCeDb217D7987FC0951B5753069bC360
  */
+
 constructor() {
   eth_usd_PriceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306 );
-  inr_usd_PriceFeed = AggregatorV3Interface(0x605D5c2fBCeDb217D7987FC0951B5753069bC360);
-
+  
 }
 
+// state varible is here  
+
+
+
+// here is mapping 
+
+
+// error is here 
+
+
+// event  is  here 
+
+
+
+
+
 /**
- *get_price_feed()==>  return a int256  value 
+ * get_price_feed   return ETH->USD price 
+ *   
  */
-
-
 
   function get_price_feed()public view returns(int256) {
     (, int256 eth_usd, , , ) = eth_usd_PriceFeed.latestRoundData();
-    (, int256 inr_usd, , , ) = inr_usd_PriceFeed.latestRoundData();
 
-       // Convert INR/USD to USD/INR
-        int256 usdInrPrice = 1e18 / inr_usd;
-
-        // ETH/INR = ETH/USD * USD/INR
-        int256 ethInrPrice = (eth_usd * usdInrPrice) / 1e8;
-
-        return ethInrPrice;
-
+    return eth_usd ;
   }
+
   function deposit_colletral_mintXP() external {}
 
   function redeem_colletral_for_XP()external {}
