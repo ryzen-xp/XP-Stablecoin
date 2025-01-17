@@ -10,7 +10,7 @@ import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.so
  */
 
 contract Stablecoin is ERC20Burnable, Ownable(msg.sender) {
-    constructor() ERC20("XPINR", "XP") {}
+    constructor() ERC20("XP", "XP") {}
 
     error XPINR_amount_zero();
     error XPINR_balance_less();
