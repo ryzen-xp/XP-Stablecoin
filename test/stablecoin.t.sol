@@ -4,7 +4,7 @@ pragma solidity ^0.8.13;
 import "forge-std/Test.sol";
 import "forge-std/console.sol";
 import {Stablecoin} from "../src/stablecoin.sol";
-import{XP_Engine} from "../src/Engine.sol";
+import {XP_Engine} from "../src/Engine.sol";
 
 /**
  * @title Tests for Stablecoin contract
@@ -42,22 +42,21 @@ contract TestStablecoin is Test {
     //     // Expect revert due to access control
     //     vm.expectRevert("Ownable: caller is not the owner");
     //     stablecoin.mint(user2, amount);
-        
+
     // }
-    function test_burn()public {
-      uint _amount = 100 ether  ;
-     
-      stablecoin.mint(owner , _amount);
-    
-      stablecoin.burn(20 ether );
-     
-      assertEq(stablecoin.balanceOf(owner)  , 80 ether  );
-      
+    function test_burn() public {
+        uint256 _amount = 100 ether;
+
+        stablecoin.mint(owner, _amount);
+
+        stablecoin.burn(20 ether);
+
+        assertEq(stablecoin.balanceOf(owner), 80 ether);
     }
 }
 
 contract Test_Engine is Test {
-     XP_Engine engine;
+    XP_Engine engine;
 
     // Predefined variables for testing
     address owner = address(this);
@@ -69,12 +68,8 @@ contract Test_Engine is Test {
         engine = new XP_Engine();
     }
 
-
-    function test_get_Price_feed()public view {
-        int256 price  = engine.get_price_feed();
+    function test_get_Price_feed() public view {
+        int256 price = engine.get_price_feed();
         console.log("price is :", price);
-        
     }
-
-
-} 
+}
