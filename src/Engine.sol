@@ -103,7 +103,7 @@ contract XP_Engine {
     }
 
 
-// this burn_XP is use to burn minted token ERC20 from blochain 
+// this burn_XP is use to burn minted token ERC20 from blockchain 
     function burn_XP(address behalf ,address _to ,  uint _amount) private moreThenZero(_amount){
       xp_minted[behalf] -= _amount ;
 
@@ -120,8 +120,12 @@ contract XP_Engine {
 
 // liquidation function is here  this
 
-    function liquidate(address _collatreal_address , address user  , uint _amount ) private  {
+    function liquidate(address collatreal , address user  , uint debt_to_cover ) external isAllowed_Token( collatreal) moreThenZero(debt_to_cover)  {
+
+        // uint256 debt_USD = convert_into_ETH_
+
         
+
     }
    
   //  deposite_collatreal takes addres of asset and amount  to deposite  in this contract 
