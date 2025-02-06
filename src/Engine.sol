@@ -41,6 +41,15 @@ contract XP_Engine {
     //  Stablecoin private immutable stablecoin ;
     Stablecoin private immutable i_XP;
 
+    uint256 private constant LIQUIDATION_THRESHOLD = 50; // This means you need to be 200% over-collateralized
+    uint256 private constant LIQUIDATION_BONUS = 10; // This means you get assets at a 10% discount when liquidating
+    uint256 private constant LIQUIDATION_PRECISION = 100;
+    uint256 private constant MIN_HEALTH_FACTOR = 1e18;
+    uint256 private constant PRECISION = 1e18;
+    uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
+    uint256 private constant FEED_PRECISION = 1e8;
+
+
     // Colletral   deposited by user  mapping
     mapping(address user => mapping(address colletralAddress => uint256 amount)) private mp_colletralDeposite;
 
