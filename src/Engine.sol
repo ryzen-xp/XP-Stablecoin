@@ -9,27 +9,9 @@ pragma solidity ^0.8.13;
 import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Stablecoin} from "./stablecoin.sol";
 import {IERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
-import "../lib/chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract XP_Engine {
-    AggregatorV3Interface internal eth_usd_PriceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
-
-    constructor(address[] memory CollateralAddress, address[] memory price_feed_address, address xp_address) {
-        if (CollateralAddress.length != price_feed_address.length) {
-            revert XP_not_equal_ratio();
-        } else {
-            for (uint256 i = 0; i < CollateralAddress.length; i++) {
-                mp_price_feed[CollateralAddress[i]] = price_feed_address[i];
-            }
-            i_XP = Stablecoin(xp_address);
-        }
-    }
-
-    function get_price_feed() public view returns (int256) {
-        (, int256 eth_usd,,,) = eth_usd_PriceFeed.latestRoundData();
-
-        return eth_usd / 1e18;
-    }
+  
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  state variable
@@ -85,6 +67,8 @@ contract XP_Engine {
     ////////////////////                   Events
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     event XP_deposited_collatreal(address user, address collatreal_address, uint256 _amount);
+    event XP_Collatreal_Redeemed( address from ,address to  , address collatreal_address , uint amount);
+    event XP_token_burned(address behalf , address to  , uint amount);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  Function
@@ -99,7 +83,7 @@ contract XP_Engine {
     // Redeem colletral  for some thing
     function redeem_colletral_for_XP(address collatreal_address , uint _amount_Collatreal , uint total_XP_burn) external moreThenZero(_amount_Collatreal) isAllowed_Token(collatreal_address) {
 
-        _burnXP(total_XP_burn, msg.sender, msg.sender);
+        burn_xp(total_XP_burn, msg.sender, msg.sender);
         _redeemCollateral(collatreal_address, _amount_Collatreal, msg.sender, msg.sender);
         // revertIfHealthFactorIsBroken(msg.sender);
 
@@ -114,8 +98,10 @@ contract XP_Engine {
     }
 
     // this burn_XP is use to burn minted token ERC20 from blockchain
-    function burn_XP(address behalf, address _to, uint256 _amount) private moreThenZero(_amount) {
+    function burn_xp(address behalf, address _to, uint256 _amount) private moreThenZero(_amount) {
+        
         xp_minted[behalf] -= _amount;
+        emit XP_token_burned(behalf , _to  , _amount);
 
         bool success = i_XP.transferFrom(_to, address(this), _amount);
         if (!success) {
@@ -154,4 +140,23 @@ contract XP_Engine {
     // Helthfactor
 
     function helthfactor() private {}
+
+    //  Redeem colletral
+
+    function _redeemCollateral(address collatreal_address  , uint _amount  , address _from  , address _to ) private isAllowed_Token(collatreal_address) {
+
+        mp_colletralDeposite[_from][collatreal_address] -= _amount ;
+
+        emit XP_Collatreal_Redeemed(_from ,_to  , collatreal_address , _amount);
+
+        bool success  = IERC20(collatreal_address).transfer(_to  , _amount );
+
+        if( success) {
+            revert XP_transection_Failed(); 
+        }
+
+
+    }
+
+    // funtion _burn_xp(address )
 }
