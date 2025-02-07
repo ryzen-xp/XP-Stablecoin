@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.13;
 
-
 /**
  * @title this is Stablecoin Engine  , its manages all functionality .
- * @author ryzen_xp 
- * @notice 
+ * @author ryzen_xp
+ * @notice
  */
 import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Stablecoin} from "./stablecoin.sol";
@@ -14,8 +13,6 @@ import "../lib/chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interf
 
 contract XP_Engine {
     AggregatorV3Interface internal eth_usd_PriceFeed = AggregatorV3Interface(0x694AA1769357215DE4FAC081bf1f309aDC325306);
-
-
 
     constructor(address[] memory CollateralAddress, address[] memory price_feed_address, address xp_address) {
         if (CollateralAddress.length != price_feed_address.length) {
@@ -49,7 +46,6 @@ contract XP_Engine {
     uint256 private constant ADDITIONAL_FEED_PRECISION = 1e10;
     uint256 private constant FEED_PRECISION = 1e8;
 
-
     // Colletral   deposited by user  mapping
     mapping(address user => mapping(address colletralAddress => uint256 amount)) private mp_colletralDeposite;
 
@@ -65,7 +61,7 @@ contract XP_Engine {
     error XP_amount_zero();
     error XP_not_equal_ratio();
     error XP_notAllowed_Token();
-    error  XP_transection_Failed();
+    error XP_transection_Failed();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  Modifier
@@ -83,7 +79,7 @@ contract XP_Engine {
             revert XP_notAllowed_Token();
         }
         _;
-    } 
+    }
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                   Events
@@ -94,16 +90,22 @@ contract XP_Engine {
     ////////////////////                  Function
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-// this deposit_colletral_mintXp is used to collect assest which user want to deposite in contract
+    // this deposit_colletral_mintXp is used to collect assest which user want to deposite in contract
     function deposit_colletral_mintXP(address collatreal_address, uint256 _amount, uint256 amountToXP_mint) external {
         deposite_collatreal(collatreal_address, _amount);
         mint_XP(amountToXP_mint);
     }
+    
+    // Redeem colletral  for some thing
+    function redeem_colletral_for_XP(address collatreal_address , uint _amount_Collatreal , uint total_XP_burn) external moreThenZero(_amount_Collatreal) isAllowed_Token(collatreal_address) {
 
-    function redeem_colletral_for_XP() external {}
+        _burnXP(total_XP_burn, msg.sender, msg.sender);
+        _redeemCollateral(collatreal_address, _amount_Collatreal, msg.sender, msg.sender);
+        // revertIfHealthFactorIsBroken(msg.sender);
 
+    }
 
-// this mint_XP is use to mint the ERC20 token 
+    // this mint_XP is use to mint the ERC20 token
     function mint_XP(uint256 _amount) private moreThenZero(_amount) returns (bool) {
         xp_minted[msg.sender] += _amount;
 
@@ -111,33 +113,29 @@ contract XP_Engine {
         return status;
     }
 
+    // this burn_XP is use to burn minted token ERC20 from blockchain
+    function burn_XP(address behalf, address _to, uint256 _amount) private moreThenZero(_amount) {
+        xp_minted[behalf] -= _amount;
 
-// this burn_XP is use to burn minted token ERC20 from blockchain 
-    function burn_XP(address behalf ,address _to ,  uint _amount) private moreThenZero(_amount){
-      xp_minted[behalf] -= _amount ;
-
-      bool success = i_XP.transferFrom(_to , address(this) , _amount);
-      if(!success){
-        revert XP_transection_Failed();
-      }
+        bool success = i_XP.transferFrom(_to, address(this), _amount);
+        if (!success) {
+            revert XP_transection_Failed();
+        }
 
         i_XP.burn(_amount);
-
     }
 
+    // liquidation function is here  this
 
-
-// liquidation function is here  this
-
-    function liquidate(address collatreal , address user  , uint debt_to_cover ) external isAllowed_Token( collatreal) moreThenZero(debt_to_cover)  {
-
+    function liquidate(address collatreal, address user, uint256 debt_to_cover)
+        external
+        isAllowed_Token(collatreal)
+        moreThenZero(debt_to_cover)
+    {
         // uint256 debt_USD = convert_into_ETH_
-
-        
-
     }
-   
-  //  deposite_collatreal takes addres of asset and amount  to deposite  in this contract 
+
+    //  deposite_collatreal takes addres of asset and amount  to deposite  in this contract
     function deposite_collatreal(address collatreal_address, uint256 _amount)
         private
         moreThenZero(_amount)
@@ -153,9 +151,7 @@ contract XP_Engine {
         return success;
     }
 
-    // Helthfactor 
+    // Helthfactor
 
-    function helthfactor() private {
-
-    }
+    function helthfactor() private {}
 }
