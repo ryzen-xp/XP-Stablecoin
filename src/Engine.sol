@@ -12,8 +12,7 @@ import {IERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20
 import "../lib/chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract XP_Engine {
-
-     constructor(address[] memory CollateralAddress, address[] memory price_feed_address, address xp_address) {
+    constructor(address[] memory CollateralAddress, address[] memory price_feed_address, address xp_address) {
         if (CollateralAddress.length != price_feed_address.length) {
             revert XP_not_equal_ratio();
         } else {
@@ -23,7 +22,6 @@ contract XP_Engine {
             i_XP = Stablecoin(xp_address);
         }
     }
-  
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  state variable              //////////////////////////////////////
@@ -76,8 +74,8 @@ contract XP_Engine {
         _;
     }
 
-    modifier isZeroAddress(address user ) {
-        if (user == address(0)){
+    modifier isZeroAddress(address user) {
+        if (user == address(0)) {
             revert XP_ZeroAddress();
         }
         _;
@@ -87,8 +85,8 @@ contract XP_Engine {
     ////////////////////                   Events
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     event XP_deposited_collatreal(address user, address collatreal_address, uint256 _amount);
-    event XP_Collatreal_Redeemed( address from ,address to  , address collatreal_address , uint amount);
-    event XP_token_burned(address behalf , address to  , uint amount);
+    event XP_Collatreal_Redeemed(address from, address to, address collatreal_address, uint256 amount);
+    event XP_token_burned(address behalf, address to, uint256 amount);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  Function
@@ -99,14 +97,16 @@ contract XP_Engine {
         deposite_collatreal(collatreal_address, _amount);
         mint_XP(amountToXP_mint);
     }
-    
-    // Redeem colletral  for some thing
-    function redeem_colletral_for_XP(address collatreal_address , uint _amount_Collatreal , uint total_XP_burn) external moreThenZero(_amount_Collatreal) isAllowed_Token(collatreal_address) {
 
+    // Redeem colletral  for some thing
+    function redeem_colletral_for_XP(address collatreal_address, uint256 _amount_Collatreal, uint256 total_XP_burn)
+        external
+        moreThenZero(_amount_Collatreal)
+        isAllowed_Token(collatreal_address)
+    {
         burn_xp(total_XP_burn, msg.sender, msg.sender);
         _redeemCollateral(collatreal_address, _amount_Collatreal, msg.sender, msg.sender);
         // revertIfHealthFactorIsBroken(msg.sender);
-
     }
 
     // this mint_XP is use to mint the ERC20 token
@@ -119,9 +119,8 @@ contract XP_Engine {
 
     // this burn_XP is use to burn minted token ERC20 from blockchain
     function burn_xp(address behalf, address _to, uint256 _amount) private moreThenZero(_amount) {
-        
         xp_minted[behalf] -= _amount;
-        emit XP_token_burned(behalf , _to  , _amount);
+        emit XP_token_burned(behalf, _to, _amount);
 
         bool success = i_XP.transferFrom(_to, address(this), _amount);
         if (!success) {
@@ -133,14 +132,14 @@ contract XP_Engine {
 
     // liquidation function is here  this
 
-    function liquidate(address collatreal, address user, uint256 debt_to_cover)
-        external
-        isAllowed_Token(collatreal)
-        moreThenZero(debt_to_cover)
-    {
-        uint debt_USD  = 
+    // function liquidate(address collatreal, address user, uint256 debt_to_cover)
+    //     external
+    //     isAllowed_Token(collatreal)
+    //     moreThenZero(debt_to_cover)
+    // {
+    //     uint debt_USD  =
 
-    }
+    // }
 
     //  deposite_collatreal takes addres of asset and amount  to deposite  in this contract
     function deposite_collatreal(address collatreal_address, uint256 _amount)
@@ -162,42 +161,41 @@ contract XP_Engine {
 
     function helthfactor(address user ) public  returns(uint256 ) {
 
-        uint rate_ETH =  
-
+        uint rate_ETH = get_price_collatreal()
 
     }
 
     //  Redeem colletral
 
-    function _redeemCollateral(address collatreal_address  , uint _amount  , address _from  , address _to ) private isAllowed_Token(collatreal_address) {
+    function _redeemCollateral(address collatreal_address, uint256 _amount, address _from, address _to)
+        private
+        isAllowed_Token(collatreal_address)
+    {
+        mp_colletralDeposite[_from][collatreal_address] -= _amount;
 
-        mp_colletralDeposite[_from][collatreal_address] -= _amount ;
+        emit XP_Collatreal_Redeemed(_from, _to, collatreal_address, _amount);
 
-        emit XP_Collatreal_Redeemed(_from ,_to  , collatreal_address , _amount);
+        bool success = IERC20(collatreal_address).transfer(_to, _amount);
 
-        bool success  = IERC20(collatreal_address).transfer(_to  , _amount );
-
-        if( success) {
-            revert XP_transection_Failed(); 
+        if (success) {
+            revert XP_transection_Failed();
         }
-
-
     }
 
-    // Price feeder its return price of any colletreal by giving there collatreal_address  
+    // Price feeder its return price of any colletreal by giving there collatreal_address
 
-    function get_price_collatreal(address collatreal_address ) public view  isAllowed_Token(collatreal_address) returns(int256){
+    function get_price_collatreal(address collatreal_address)
+        public
+        view
+        isAllowed_Token(collatreal_address)
+        returns (int256)
+    {
+        address price_feeder_address = mp_price_feed[collatreal_address];
 
-       address price_feeder_address =  mp_price_feed[collatreal_address];
+        AggregatorV3Interface price_feeder = AggregatorV3Interface(price_feeder_address);
 
-       AggregatorV3Interface price_feeder =  AggregatorV3Interface(price_feeder_address);
+        (, int256 price,,,) = price_feeder.latestRoundData();
 
-       (, int256 eth_usd,,,) = price_feeder.latestRoundData();
-
-       return eth_usd ;
-         
-
+         return ((usdAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION));
     }
-
-   
 }
