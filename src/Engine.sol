@@ -9,12 +9,24 @@ pragma solidity ^0.8.13;
 import {Ownable} from "../lib/openzeppelin-contracts/contracts/access/Ownable.sol";
 import {Stablecoin} from "./stablecoin.sol";
 import {IERC20} from "../lib/openzeppelin-contracts/contracts/token/ERC20/IERC20.sol";
+import "../lib/chainlink/contracts/src/v0.8/shared/interfaces/AggregatorV3Interface.sol";
 
 contract XP_Engine {
+
+     constructor(address[] memory CollateralAddress, address[] memory price_feed_address, address xp_address) {
+        if (CollateralAddress.length != price_feed_address.length) {
+            revert XP_not_equal_ratio();
+        } else {
+            for (uint256 i = 0; i < CollateralAddress.length; i++) {
+                mp_price_feed[CollateralAddress[i]] = price_feed_address[i];
+            }
+            i_XP = Stablecoin(xp_address);
+        }
+    }
   
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
-    ////////////////////                  state variable
+    ////////////////////                  state variable              //////////////////////////////////////
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     //  Stablecoin private immutable stablecoin ;
@@ -44,6 +56,7 @@ contract XP_Engine {
     error XP_not_equal_ratio();
     error XP_notAllowed_Token();
     error XP_transection_Failed();
+    error XP_ZeroAddress();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  Modifier
@@ -59,6 +72,13 @@ contract XP_Engine {
     modifier isAllowed_Token(address collatreal_address) {
         if (mp_price_feed[collatreal_address] == address(0)) {
             revert XP_notAllowed_Token();
+        }
+        _;
+    }
+
+    modifier isZeroAddress(address user ) {
+        if (user == address(0)){
+            revert XP_ZeroAddress();
         }
         _;
     }
@@ -118,7 +138,8 @@ contract XP_Engine {
         isAllowed_Token(collatreal)
         moreThenZero(debt_to_cover)
     {
-        // uint256 debt_USD = convert_into_ETH_
+        uint debt_USD  = 
+
     }
 
     //  deposite_collatreal takes addres of asset and amount  to deposite  in this contract
@@ -139,7 +160,12 @@ contract XP_Engine {
 
     // Helthfactor
 
-    function helthfactor() private {}
+    function helthfactor(address user ) public  returns(uint256 ) {
+
+        uint rate_ETH =  
+
+
+    }
 
     //  Redeem colletral
 
@@ -158,5 +184,20 @@ contract XP_Engine {
 
     }
 
-    // funtion _burn_xp(address )
+    // Price feeder its return price of any colletreal by giving there collatreal_address  
+
+    function get_price_collatreal(address collatreal_address ) public view  isAllowed_Token(collatreal_address) returns(int256){
+
+       address price_feeder_address =  mp_price_feed[collatreal_address];
+
+       AggregatorV3Interface price_feeder =  AggregatorV3Interface(price_feeder_address);
+
+       (, int256 eth_usd,,,) = price_feeder.latestRoundData();
+
+       return eth_usd ;
+         
+
+    }
+
+   
 }
