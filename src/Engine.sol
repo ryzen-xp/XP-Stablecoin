@@ -47,6 +47,9 @@ contract XP_Engine {
     // User minted XP token mapping( user => amount_of_XPTokens ) : :
     mapping(address => uint256) private xp_minted;
 
+    //  allowed collatreal address  fot this stable coin 
+     address[] allowedCollaterals ;
+
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  ERRORS
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -157,13 +160,32 @@ contract XP_Engine {
         return success;
     }
 
-    // Helthfactor
+    function healthFactor(address user) public view returns (uint256) {
+    uint256 totalCollateralValue = getTotalCollateralValue(user);
+    uint256 totalDebt = xp_minted[user];
 
-    function helthfactor(address user ) public  returns(uint256 ) {
-
-        uint rate_ETH = get_price_collatreal()
-
+    if (totalDebt == 0) {
+        return type(uint256).max; // No debt means an infinite health factor
     }
+
+    uint256 collateralRatio = (totalCollateralValue * PRECISION) / totalDebt;
+
+    return collateralRatio;
+}
+
+function getTotalCollateralValue(address user) public view returns (uint256 totalValue) {
+    // Iterate through all collateral assets deposited by the user
+    for (uint256 i = 0; i < allowedCollaterals.length; i++) {
+        address collateral = allowedCollaterals[i];
+        uint256 amount = mp_colletralDeposite[user][collateral];
+
+        if (amount > 0) {
+            int256 price = get_price_collatreal(collateral);
+            totalValue += (uint256(price) * amount) / PRECISION;
+        }
+    }
+}
+
 
     //  Redeem colletral
 
