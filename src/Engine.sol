@@ -90,6 +90,7 @@ contract XP_Engine {
     event XP_deposited_collatreal(address user, address collatreal_address, uint256 _amount);
     event XP_Collatreal_Redeemed(address from, address to, address collatreal_address, uint256 amount);
     event XP_token_burned(address behalf, address to, uint256 amount);
+    event Liquidation(address indexed user, address indexed liquidator, address indexed collatreal, uint256 debtCovered, uint256 collateralSeized);
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  Function
@@ -135,14 +136,25 @@ contract XP_Engine {
 
     // liquidation function is here  this
 
-    // function liquidate(address collatreal, address user, uint256 debt_to_cover)
-    //     external
-    //     isAllowed_Token(collatreal)
-    //     moreThenZero(debt_to_cover)
-    // {
-    //     uint debt_USD  =
+    function liquidate(address collatreal, address user, uint256 debt_to_cover)
+        external
+        isAllowed_Token(collatreal)
+        moreThenZero(debt_to_cover)
+    {
+        uint256 debt_USD = get_price_collatreal(collatreal) * debt_to_cover / PRECISION;
+        uint256 userHealthFactor = healthFactor(user);
 
-    // }
+        require(userHealthFactor < MIN_HEALTH_FACTOR, "User's health factor is above the minimum threshold");
+
+        uint256 collateralToSeize = (debt_USD * LIQUIDATION_PRECISION) / (LIQUIDATION_THRESHOLD - LIQUIDATION_BONUS);
+        collateralToSeize = (collateralToSeize * PRECISION) / get_price(collatreal);
+
+        _redeemCollateral(collatreal, collateralToSeize, user, msg.sender);
+        burn_xp(user, msg.sender, debt_to_cover);
+
+        // Emit an event for liquidation
+        emit Liquidation(user, msg.sender, collatreal, debt_to_cover, collateralToSeize);
+    }
 
     //  deposite_collatreal takes addres of asset and amount  to deposite  in this contract
     function deposite_collatreal(address collatreal_address, uint256 _amount)
@@ -218,6 +230,10 @@ function getTotalCollateralValue(address user) public view returns (uint256 tota
 
         (, int256 price,,,) = price_feeder.latestRoundData();
 
-         return ((usdAmountInWei * PRECISION) / (uint256(price) * ADDITIONAL_FEED_PRECISION));
+         return price;
     }
+
+
+
+
 }
