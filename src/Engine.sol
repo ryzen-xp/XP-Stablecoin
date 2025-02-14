@@ -47,8 +47,8 @@ contract XP_Engine {
     // User minted XP token mapping( user => amount_of_XPTokens ) : :
     mapping(address => uint256) private xp_minted;
 
-    //  allowed collatreal address  fot this stable coin 
-     address[] allowedCollaterals ;
+    //  allowed collatreal address  fot this stable coin
+    address[] allowedCollaterals;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  ERRORS
@@ -58,6 +58,7 @@ contract XP_Engine {
     error XP_notAllowed_Token();
     error XP_transection_Failed();
     error XP_ZeroAddress();
+    error XP__HealthFactorNotImproved();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  Modifier
@@ -90,7 +91,13 @@ contract XP_Engine {
     event XP_deposited_collatreal(address user, address collatreal_address, uint256 _amount);
     event XP_Collatreal_Redeemed(address from, address to, address collatreal_address, uint256 amount);
     event XP_token_burned(address behalf, address to, uint256 amount);
-    event Liquidation(address indexed user, address indexed liquidator, address indexed collatreal, uint256 debtCovered, uint256 collateralSeized);
+    event Liquidation(
+        address indexed user,
+        address indexed liquidator,
+        address indexed collatreal,
+        uint256 debtCovered,
+        uint256 collateralSeized
+    );
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  Function
@@ -108,7 +115,7 @@ contract XP_Engine {
         moreThenZero(_amount_Collatreal)
         isAllowed_Token(collatreal_address)
     {
-        burn_xp(total_XP_burn, msg.sender, msg.sender);
+        burn_xp(msg.sender, msg.sender, total_XP_burn);
         _redeemCollateral(collatreal_address, _amount_Collatreal, msg.sender, msg.sender);
         // revertIfHealthFactorIsBroken(msg.sender);
     }
@@ -122,11 +129,11 @@ contract XP_Engine {
     }
 
     // this burn_XP is use to burn minted token ERC20 from blockchain
-    function burn_xp(address behalf, address _to, uint256 _amount) private moreThenZero(_amount) {
-        xp_minted[behalf] -= _amount;
-        emit XP_token_burned(behalf, _to, _amount);
+    function burn_xp(address onBehalfof, address _to, uint256 _amount) private moreThenZero(_amount) {
+        xp_minted[onBehalfof] -= _amount;
+        emit XP_token_burned(onBehalfof, _to, _amount);
 
-        bool success = i_XP.transferFrom(_to, address(this), _amount);
+        bool success = i_XP.transferFrom(onBehalfof, address(this), _amount);
         if (!success) {
             revert XP_transection_Failed();
         }
@@ -141,19 +148,24 @@ contract XP_Engine {
         isAllowed_Token(collatreal)
         moreThenZero(debt_to_cover)
     {
-        uint256 debt_USD = get_price_collatreal(collatreal) * debt_to_cover / PRECISION;
-        uint256 userHealthFactor = healthFactor(user);
+        uint256 startinguserHealthFactor = healthFactor(user);
+        require(startinguserHealthFactor < MIN_HEALTH_FACTOR, "User's health factor is above the minimum threshold");
 
-        require(userHealthFactor < MIN_HEALTH_FACTOR, "User's health factor is above the minimum threshold");
+        uint256 debt_in_usd = get_price_collatreal(collatreal) * debt_to_cover;
 
-        uint256 collateralToSeize = (debt_USD * LIQUIDATION_PRECISION) / (LIQUIDATION_THRESHOLD - LIQUIDATION_BONUS);
-        collateralToSeize = (collateralToSeize * PRECISION) / get_price(collatreal);
+        uint256 bonusCollateral = (debt_in_usd * LIQUIDATION_BONUS) / LIQUIDATION_PRECISION;
 
-        _redeemCollateral(collatreal, collateralToSeize, user, msg.sender);
+        _redeemCollateral(collatreal, debt_in_usd + bonusCollateral, user, msg.sender);
         burn_xp(user, msg.sender, debt_to_cover);
 
+        uint256 endingUserHealthFactor = healthFactor(user);
+        // This conditional should never hit, but just in case
+        if (endingUserHealthFactor <= startinguserHealthFactor) {
+            revert XP__HealthFactorNotImproved();
+        }
+
         // Emit an event for liquidation
-        emit Liquidation(user, msg.sender, collatreal, debt_to_cover, collateralToSeize);
+        emit Liquidation(user, msg.sender, collatreal, debt_to_cover, debt_in_usd + bonusCollateral);
     }
 
     //  deposite_collatreal takes addres of asset and amount  to deposite  in this contract
@@ -173,34 +185,32 @@ contract XP_Engine {
     }
 
     function healthFactor(address user) public view returns (uint256) {
-    uint256 totalCollateralValue = getTotalCollateralValue(user);
-    uint256 totalDebt = xp_minted[user];
+        uint256 totalCollateralValue = getTotalCollateralValue(user);
+        uint256 totalDebt = xp_minted[user];
 
-    if (totalDebt == 0) {
-        return type(uint256).max; // No debt means an infinite health factor
+        if (totalDebt == 0) {
+            return type(uint256).max; // No debt means an infinite health factor
+        }
+
+        uint256 collateralRatio = (totalCollateralValue * PRECISION) / totalDebt;
+
+        return collateralRatio;
     }
 
-    uint256 collateralRatio = (totalCollateralValue * PRECISION) / totalDebt;
+    function getTotalCollateralValue(address user) public view returns (uint256 totalValue) {
+        // Iterate through all collateral assets deposited by the user
+        for (uint256 i = 0; i < allowedCollaterals.length; i++) {
+            address collateral = allowedCollaterals[i];
+            uint256 amount = mp_colletralDeposite[user][collateral];
 
-    return collateralRatio;
-}
-
-function getTotalCollateralValue(address user) public view returns (uint256 totalValue) {
-    // Iterate through all collateral assets deposited by the user
-    for (uint256 i = 0; i < allowedCollaterals.length; i++) {
-        address collateral = allowedCollaterals[i];
-        uint256 amount = mp_colletralDeposite[user][collateral];
-
-        if (amount > 0) {
-            int256 price = get_price_collatreal(collateral);
-            totalValue += (uint256(price) * amount) / PRECISION;
+            if (amount > 0) {
+                uint256 price = get_price_collatreal(collateral);
+                totalValue += (uint256(price) * amount) / PRECISION;
+            }
         }
     }
-}
-
 
     //  Redeem colletral
-
     function _redeemCollateral(address collatreal_address, uint256 _amount, address _from, address _to)
         private
         isAllowed_Token(collatreal_address)
@@ -222,7 +232,7 @@ function getTotalCollateralValue(address user) public view returns (uint256 tota
         public
         view
         isAllowed_Token(collatreal_address)
-        returns (int256)
+        returns (uint256)
     {
         address price_feeder_address = mp_price_feed[collatreal_address];
 
@@ -230,10 +240,6 @@ function getTotalCollateralValue(address user) public view returns (uint256 tota
 
         (, int256 price,,,) = price_feeder.latestRoundData();
 
-         return price;
+        return uint256(price) / PRECISION;
     }
-
-
-
-
 }
