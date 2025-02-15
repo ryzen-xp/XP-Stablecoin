@@ -48,7 +48,7 @@ contract XP_Engine {
     mapping(address => uint256) private xp_minted;
 
     //  allowed collatreal address  fot this stable coin
-    address[] allowedCollaterals;
+    address[] private allowedCollaterals;
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  ERRORS
@@ -59,6 +59,7 @@ contract XP_Engine {
     error XP_transection_Failed();
     error XP_ZeroAddress();
     error XP__HealthFactorNotImproved();
+    error XP_healthFactorGood();
 
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
     ////////////////////                  Modifier
@@ -104,12 +105,12 @@ contract XP_Engine {
     ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
     // this deposit_colletral_mintXp is used to collect assest which user want to deposite in contract
-    function deposit_colletral_mintXP(address collatreal_address, uint256 _amount, uint256 amountToXP_mint) external {
-        deposite_collatreal(collatreal_address, _amount);
-        mint_XP(amountToXP_mint);
+    function deposit_colletral_mintXP(address collatreal_address, uint256 amount, uint256 amountofXP_mint) external {
+        deposite_collatreal(collatreal_address, amount);
+        mint_XP(amountofXP_mint);
     }
 
-    // Redeem colletral  for some thing
+    // Redeem colletral  for exchange of XP Token  that  minted for  the user 
     function redeem_colletral_for_XP(address collatreal_address, uint256 _amount_Collatreal, uint256 total_XP_burn)
         external
         moreThenZero(_amount_Collatreal)
@@ -120,10 +121,9 @@ contract XP_Engine {
         // revertIfHealthFactorIsBroken(msg.sender);
     }
 
-    // this mint_XP is use to mint the ERC20 token
+    // this mint_XP is use to mint the ERC20 token(XP Token )
     function mint_XP(uint256 _amount) private moreThenZero(_amount) returns (bool) {
         xp_minted[msg.sender] += _amount;
-
         bool status = i_XP.mint(msg.sender, _amount);
         return status;
     }
@@ -131,14 +131,14 @@ contract XP_Engine {
     // this burn_XP is use to burn minted token ERC20 from blockchain
     function burn_xp(address onBehalfof, address _to, uint256 _amount) private moreThenZero(_amount) {
         xp_minted[onBehalfof] -= _amount;
-        emit XP_token_burned(onBehalfof, _to, _amount);
-
+       
         bool success = i_XP.transferFrom(onBehalfof, address(this), _amount);
         if (!success) {
             revert XP_transection_Failed();
         }
 
         i_XP.burn(_amount);
+         emit XP_token_burned(onBehalfof, _to, _amount);
     }
 
     // liquidation function is here  this
@@ -148,8 +148,10 @@ contract XP_Engine {
         isAllowed_Token(collatreal)
         moreThenZero(debt_to_cover)
     {
-        uint256 startinguserHealthFactor = healthFactor(user);
-        require(startinguserHealthFactor < MIN_HEALTH_FACTOR, "User's health factor is above the minimum threshold");
+        uint256 startinguserHealthFactor = healthFactor(user);       
+        if( startinguserHealthFactor < MIN_HEALTH_FACTOR){
+            revert XP_healthFactorGood();
+        }
 
         uint256 debt_in_usd = get_price_collatreal(collatreal) * debt_to_cover;
 
@@ -184,7 +186,7 @@ contract XP_Engine {
         return success;
     }
 
-    function healthFactor(address user) public view returns (uint256) {
+    function healthFactor(address user) private view returns (uint256) {
         uint256 totalCollateralValue = getTotalCollateralValue(user);
         uint256 totalDebt = xp_minted[user];
 
@@ -241,5 +243,47 @@ contract XP_Engine {
         (, int256 price,,,) = price_feeder.latestRoundData();
 
         return uint256(price) / PRECISION;
+    }
+
+
+        function getPrecision() external pure returns (uint256) {
+        return PRECISION;
+    }
+
+    function getAdditionalFeedPrecision() external pure returns (uint256) {
+        return ADDITIONAL_FEED_PRECISION;
+    }
+
+    function getLiquidationThreshold() external pure returns (uint256) {
+        return LIQUIDATION_THRESHOLD;
+    }
+
+    function getLiquidationBonus() external pure returns (uint256) {
+        return LIQUIDATION_BONUS;
+    }
+
+    function getLiquidationPrecision() external pure returns (uint256) {
+        return LIQUIDATION_PRECISION;
+    }
+
+    function getMinHealthFactor() external pure returns (uint256) {
+        return MIN_HEALTH_FACTOR;
+    }
+
+    function getCollateralTokens() external view returns (address[] memory) {
+   
+        return  allowedCollaterals;
+    }
+
+    function getDsc() external view returns (address) {
+        return address(i_XP);
+    }
+
+    function getCollateralTokenPriceFeed(address token) external view returns (address) {
+        return mp_price_feed[token];
+    }
+
+    function getHealthFactor(address user) external view returns (uint256) {
+        return healthFactor(user);
     }
 }
